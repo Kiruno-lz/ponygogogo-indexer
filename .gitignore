@@ -1,0 +1,8 @@
+node_modules/
+# Codegen output (.envio/.gitignore keeps the generated types out; envio-env.d.ts is committed).
+generated/
+.env
+.env.*
+!.env.example
+*.log
+.pnpm-store

@@ -1,0 +1,28 @@
+{
+  "name": "ponygogogo-envio",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Envio HyperIndex read model for Ponygogogo paid races on Monad Testnet (history and stats, never fund state)",
+  "type": "module",
+  "scripts": {
+    "codegen": "envio codegen",
+    "dev": "envio dev",
+    "start": "envio start",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run",
+    "smoke": "vitest run --config vitest.live.config.ts",
+    "abis": "node scripts/sync-abis.mjs",
+    "abis:check": "node scripts/sync-abis.mjs --check"
+  },
+  "dependencies": {
+    "envio": "3.12.1"
+  },
+  "devDependencies": {
+    "@types/node": "24.12.2",
+    "typescript": "6.0.3",
+    "vitest": "4.1.0"
+  },
+  "engines": {
+    "node": ">=22.0.0"
+  }
+}

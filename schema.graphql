@@ -1,0 +1,241 @@
+"""
+Every entity is a read model rebuilt from canonical PonyGame/PonyVault events and rolled back on
+reorgs. Nothing here decides or proves funds: balances, locks and session state are read from the
+contracts over RPC.
+"""
+enum SessionState {
+  OPEN
+  SETTLED
+  FORFEITED
+}
+
+enum StakeLockState {
+  LOCKED
+  SETTLED
+}
+
+enum VaultTransferKind {
+  DEPOSIT
+  WITHDRAWAL
+  HOUSE_FUND
+  HOUSE_WITHDRAWAL
+}
+
+"""
+One paid race, keyed by the on-chain sessionId (0x-prefixed bytes32).
+"""
+type Session {
+  id: ID!
+  "PonyGame that opened the session"
+  game: String!
+  player: Player!
+  horseId: Int!
+  "Stake in wei"
+  stake: BigInt!
+  seed: String!
+  rulesetHash: String!
+  "T0 in unix seconds, from SessionOpened"
+  openedAt: BigInt!
+  openedBlock: BigInt!
+  openTx: String!
+  state: SessionState! @index
+  "Sealed hash of the open block, once RandomAnchorSealed names it"
+  openAnchor: String
+  "RandomAnchorSealed events applied to this session (open anchor plus choice anchors)"
+  anchorsSealed: Int!
+  "CardChosen submissions; whether each took effect is only known at settlement"
+  choiceCount: Int!
+  "Submissions with cardId 0 (active forfeit of a checkpoint)"
+  forfeitSubmissions: Int!
+  lastCheckpoint: Int!
+  choices: [Choice!]! @derivedFrom(field: "session")
+  "Five canonical finish times in ms, by horseId"
+  finishTime: [Int!]
+  "Horse ids in physical finish order"
+  rawOrder: [Int!]
+  "Horse ids in settlement order (after the contract's easter-egg rules)"
+  settlementOrder: [Int!]
+  "1-based rank the payout used"
+  playerSettlementRank: Int
+  "1-based physical rank of the player's horse, derived from rawOrder"
+  playerRawRank: Int
+  "Card acquired at checkpoints 1..3 (0 = none), from SessionSettled"
+  acquired: [Int!]
+  "Submitted choices that matched the acquired card"
+  effectiveChoices: Int
+  "Gross return in wei (stake included); 0 when forfeited"
+  payout: BigInt
+  "payout - stake once closed; -stake when forfeited"
+  net: BigInt
+  digest: String
+  "SessionForfeited reason: 1 = required anchor lost, 2 = owner closed a solver-faulted session"
+  forfeitReason: Int
+  "Block timestamp (unix seconds) of the SessionSettled or SessionForfeited event"
+  closedAt: BigInt
+  closedBlock: BigInt
+  closeTx: String
+}
+
+"""
+One CardChosen submission, keyed by sessionId-checkpoint. v2 records the submission only; the
+solver decides at settlement whether it took effect.
+"""
+type Choice {
+  id: ID!
+  session: Session!
+  player: Player!
+  checkpoint: Int!
+  "0 = active forfeit of this checkpoint"
+  cardId: Int!
+  forfeit: Boolean!
+  refreshSlots: [Int!]!
+  "Seconds after T0 of the choice block"
+  txSec: Int!
+  blockNumber: BigInt!
+  timestamp: BigInt!
+  txHash: String!
+  "Sealed hash of the choice block, once RandomAnchorSealed names it"
+  anchor: String
+  "SessionSettled.acquired at this checkpoint; null until settled"
+  acquiredCardId: Int
+  "acquiredCardId == cardId; null until settled and for forfeited sessions (never solved)"
+  effective: Boolean
+}
+
+"""
+Per-player totals, keyed by the checksummed account address (the player's sma-b).
+"""
+type Player {
+  id: ID!
+  sessions: [Session!]! @derivedFrom(field: "player")
+  sessionsOpened: Int!
+  sessionsSettled: Int!
+  sessionsForfeited: Int!
+  "Settled sessions by settlement rank 1..5"
+  settlementRankCounts: [Int!]!
+  "Sum of stakes over every opened session, wei"
+  totalStaked: BigInt!
+  "Sum of payouts over settled sessions, wei"
+  totalPaidOut: BigInt!
+  "Sum of stakes lost to SessionForfeited, wei"
+  totalForfeited: BigInt!
+  "Sum of (payout - stake) over closed sessions; open sessions count 0"
+  net: BigInt!
+  totalDeposited: BigInt!
+  depositCount: Int!
+  totalWithdrawn: BigInt!
+  withdrawalCount: Int!
+}
+
+"""
+Per-horse statistics, keyed by horseId 0..4.
+"""
+type HorseStat {
+  id: ID!
+  horseId: Int!
+  "Sessions whose player backed this horse"
+  picked: Int!
+  "Settled races (every settled race runs all five horses)"
+  raced: Int!
+  "First place in rawOrder"
+  physicalWins: Int!
+  "First place in settlementOrder"
+  settlementWins: Int!
+  "Settled sessions where the player backed this horse and got settlement rank 1"
+  pickedWins: Int!
+}
+
+"""
+Per-card statistics, keyed by cardId 1..26 (forfeits, cardId 0, are not a card).
+"""
+type CardStat {
+  id: ID!
+  cardId: Int!
+  "CardChosen submissions naming this card"
+  submitted: Int!
+  "Submissions confirmed by SessionSettled.acquired"
+  effective: Int!
+  "Acquisitions at settlement, including cards the rules picked automatically"
+  acquired: Int!
+}
+
+"""
+Vault-side record of one session's stake lock, keyed by sessionId. Kept apart from Session so
+Game and Vault events never depend on each other's order.
+"""
+type StakeLock {
+  id: ID!
+  vault: String!
+  player: String!
+  stake: BigInt!
+  maxPayout: BigInt!
+  reserve: BigInt!
+  state: StakeLockState!
+  "StakeSettled payout in wei; 0 for losses and forfeits"
+  payout: BigInt
+  lockedBlock: BigInt!
+  lockTx: String!
+  settledBlock: BigInt
+  settleTx: String
+}
+
+"""
+One Vault deposit, withdrawal or house funding movement, keyed by chainId_block_logIndex.
+"""
+type VaultTransfer {
+  id: ID!
+  vault: String!
+  kind: VaultTransferKind!
+  account: String! @index
+  amount: BigInt!
+  blockNumber: BigInt!
+  timestamp: BigInt!
+  txHash: String!
+}
+
+"""
+Event-derived Vault totals, keyed by Vault address (one row per deployed Vault). A statistic, not
+the Vault's balance sheet: read available/locked/house liquidity from the contract.
+"""
+type VaultStat {
+  id: ID!
+  totalDeposited: BigInt!
+  depositCount: Int!
+  totalWithdrawn: BigInt!
+  withdrawalCount: Int!
+  houseFunded: BigInt!
+  houseFundCount: Int!
+  houseWithdrawn: BigInt!
+  houseWithdrawCount: Int!
+  "Cumulative stake ever locked"
+  totalStakeLocked: BigInt!
+  lockCount: Int!
+  "Stake locked minus stake released by StakeSettled"
+  openStake: BigInt!
+  "House reserve held for still-locked sessions"
+  openReserve: BigInt!
+  "Sum of StakeSettled payouts"
+  totalPayout: BigInt!
+  settleCount: Int!
+  "Sum of (stake - payout) over settled locks: the house's game result"
+  housePnl: BigInt!
+  entryPaused: Boolean!
+  pauseChangedBlock: BigInt
+}
+
+"""
+Event-derived PonyGame totals, keyed by PonyGame address.
+"""
+type GameStat {
+  id: ID!
+  "Vault bound by VaultBound"
+  vault: String
+  "PonyGame starts paused; flips on EntryPauseChanged"
+  entryPaused: Boolean!
+  pauseChangedBlock: BigInt
+  sessionsOpened: Int!
+  sessionsSettled: Int!
+  sessionsForfeited: Int!
+  totalStaked: BigInt!
+  totalPaidOut: BigInt!
+}

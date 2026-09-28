@@ -1,0 +1,68 @@
+# yaml-language-server: $schema=./node_modules/envio/evm.schema.json
+name: ponygogogo-paid-races
+description: >-
+  Read model of Ponygogogo paid races (PonyGame session protocol v2 and PonyVault) on Monad
+  Testnet. History and statistics only; fund and session state are always read from the
+  contracts over RPC.
+# Event ABIs are copied from the Foundry artifacts by scripts/sync-abis.mjs (`--check` detects drift).
+# Block number/timestamp/hash come by default; the transaction hash is selected only for the events
+# whose handlers store it.
+contracts:
+  - name: PonyGame
+    abi_file_path: ./abis/PonyGame.json
+    events:
+      - event: SessionOpened
+        field_selection:
+          transaction_fields: [hash]
+      - event: CardChosen
+        field_selection:
+          transaction_fields: [hash]
+      - event: RandomAnchorSealed
+      - event: SessionSettled
+        field_selection:
+          transaction_fields: [hash]
+      - event: SessionForfeited
+        field_selection:
+          transaction_fields: [hash]
+      - event: VaultBound
+      - event: EntryPauseChanged
+  - name: PonyVault
+    abi_file_path: ./abis/PonyVault.json
+    events:
+      - event: Deposited
+        field_selection:
+          transaction_fields: [hash]
+      - event: Withdrawn
+        field_selection:
+          transaction_fields: [hash]
+      - event: HouseFunded
+        field_selection:
+          transaction_fields: [hash]
+      - event: HouseWithdrawn
+        field_selection:
+          transaction_fields: [hash]
+      - event: EntryPauseChanged
+      - event: StakeLocked
+        field_selection:
+          transaction_fields: [hash]
+      - event: StakeSettled
+        field_selection:
+          transaction_fields: [hash]
+# Default HyperIndex behaviour, stated explicitly: on a reorg within max_reorg_depth (default 200
+# blocks) every entity written from the orphaned blocks is rolled back and the canonical blocks are
+# re-processed, so all aggregates are recomputed from canonical events. Handlers keep no state
+# outside the entity store and make no external calls, so nothing escapes the rollback.
+rollback_on_reorg: true
+chains:
+  - id: 10143 # Monad Testnet
+    # One chain-level start_block (the PonyGame deploy block; PonyVault is deployed after it): envio
+    # 3.12.1 rejects a second createTestIndexer().process() call when contracts carry their own
+    # start_block overrides.
+    start_block: 66458114
+    hypersync_config:
+      url: https://monad-testnet.hypersync.xyz
+    contracts:
+      - name: PonyGame
+        address: "0x92428770e79A95377c641F2Da9C9D97F4AA899c8"
+      - name: PonyVault
+        address: "0xb1677bc7bceD53612f9569ac42eE752081485282"

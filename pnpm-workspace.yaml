@@ -1,0 +1,7 @@
+# Standalone package: this file also stops pnpm from walking up into the Ponygogogo root.
+# esbuild (pulled in by vitest) ships a postinstall; pnpm 10 reads onlyBuiltDependencies,
+# pnpm 11+ reads allowBuilds.
+onlyBuiltDependencies:
+  - esbuild
+allowBuilds:
+  esbuild: true
