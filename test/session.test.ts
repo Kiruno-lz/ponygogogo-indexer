@@ -58,6 +58,8 @@ describe('settled session', () => {
       game: GAME,
       player_id: PLAYER,
       horseId: 2,
+      roster: [0,1,2,3,4],
+      ponyId: 2,
       stake: STAKE,
       seed: hex32(0x5eed),
       rulesetHash: '0x5ff01a27886c1cad8a1d286cf2bb15280f711d7133ab3377b375855bf5d3f84b',
@@ -119,8 +121,8 @@ describe('settled session', () => {
       net: STAKE * 2n,
     })
 
-    const horses = (await indexer.HorseStat.getAll()).sort((a, b) => a.horseId - b.horseId)
-    expect(horses.map((h) => [h.horseId, h.picked, h.raced, h.physicalWins, h.settlementWins, h.pickedWins])).toEqual([
+    const horses = (await indexer.HorseStat.getAll()).sort((a, b) => a.ponyId - b.ponyId)
+    expect(horses.map((h) => [h.ponyId, h.picked, h.raced, h.physicalWins, h.settlementWins, h.pickedWins])).toEqual([
       [0, 0, 1, 0, 0, 0],
       [1, 0, 1, 0, 0, 0],
       [2, 1, 1, 1, 1, 1],
@@ -164,8 +166,8 @@ describe('settled session', () => {
       net: -STAKE,
       effectiveChoices: 0,
     })
-    const horses = (await indexer.HorseStat.getAll()).sort((a, b) => a.horseId - b.horseId)
-    expect(horses.map((h) => [h.horseId, h.physicalWins, h.settlementWins, h.pickedWins])).toEqual([
+    const horses = (await indexer.HorseStat.getAll()).sort((a, b) => a.ponyId - b.ponyId)
+    expect(horses.map((h) => [h.ponyId, h.physicalWins, h.settlementWins, h.pickedWins])).toEqual([
       [0, 0, 0, 0],
       [1, 1, 0, 0],
       [2, 0, 0, 0],

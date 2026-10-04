@@ -14,6 +14,11 @@ contracts:
       - event: SessionOpened
         field_selection:
           transaction_fields: [hash]
+      - event: "SessionOpened(bytes32 indexed sessionId, address indexed player, uint8 horseId, uint256 stake, bytes32 seed, uint64 openedAt, uint64 openedBlock, bytes32 rulesetHash)"
+        name: LegacySessionOpened
+        field_selection:
+          transaction_fields: [hash]
+      - event: RewardsBound
       - event: CardChosen
         field_selection:
           transaction_fields: [hash]
@@ -26,13 +31,21 @@ contracts:
           transaction_fields: [hash]
       - event: VaultBound
       - event: EntryPauseChanged
+  - name: PonyRewards
+    abi_file_path: ./abis/PonyRewards.json
+    events:
+      - event: CollectibleGranted
+        field_selection:
+          transaction_fields: [hash]
+      - event: GameRegistered
   - name: PonyVault
     abi_file_path: ./abis/PonyVault.json
     events:
-      - event: Deposited
+      # Frozen legacy Vault topics; current payable Vaults have no player deposit/withdrawal API.
+      - event: "Deposited(address indexed player, uint256 amount)"
         field_selection:
           transaction_fields: [hash]
-      - event: Withdrawn
+      - event: "Withdrawn(address indexed player, uint256 amount)"
         field_selection:
           transaction_fields: [hash]
       - event: HouseFunded
@@ -66,3 +79,5 @@ chains:
         address: "0x92428770e79A95377c641F2Da9C9D97F4AA899c8"
       - name: PonyVault
         address: "0xb1677bc7bceD53612f9569ac42eE752081485282"
+      - name: PonyRewards
+        address: null # Registered from the configured Game's canonical RewardsBound event.

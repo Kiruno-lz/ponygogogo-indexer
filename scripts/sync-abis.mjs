@@ -13,7 +13,7 @@ import { fileURLToPath } from 'node:url'
 const here = dirname(fileURLToPath(import.meta.url))
 const pkg = join(here, '..')
 const artifacts = join(pkg, '..', 'out')
-const contracts = ['PonyGame', 'PonyVault']
+const contracts = ['PonyGame', 'PonyVault', 'PonyRewards']
 const check = process.argv.includes('--check')
 
 let drift = false

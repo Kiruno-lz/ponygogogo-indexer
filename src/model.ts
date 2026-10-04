@@ -82,8 +82,8 @@ export function newPlayer(id: string): Player {
   }
 }
 
-export function newHorseStat(horseId: number): HorseStat {
-  return { id: String(horseId), horseId, picked: 0, raced: 0, physicalWins: 0, settlementWins: 0, pickedWins: 0 }
+export function newHorseStat(ponyId: number): HorseStat {
+  return { id: String(ponyId), ponyId, picked: 0, raced: 0, physicalWins: 0, settlementWins: 0, pickedWins: 0 }
 }
 
 export function newCardStat(cardId: number): CardStat {
@@ -94,6 +94,7 @@ export function newGameStat(id: string): GameStat {
   return {
     id,
     vault: undefined,
+    rewards: undefined,
     entryPaused: GAME_STARTS_PAUSED,
     pauseChangedBlock: undefined,
     sessionsOpened: 0,
@@ -130,14 +131,15 @@ export function newVaultStat(id: string): VaultStat {
 /** Horse statistics after one settled race. */
 export function settleHorse(
   stat: HorseStat,
-  race: { rawOrder: readonly number[]; settlementOrder: readonly number[]; playerHorseId: number; playerRank: number },
+  race: { rawOrder: readonly number[]; settlementOrder: readonly number[]; playerHorseId: number; playerRank: number; roster?: readonly number[] },
 ): HorseStat {
-  const backed = stat.horseId === race.playerHorseId
+  const roster = race.roster ?? [0,1,2,3,4]
+  const backed = stat.ponyId === roster[race.playerHorseId]
   return {
     ...stat,
     raced: stat.raced + 1,
-    physicalWins: stat.physicalWins + (race.rawOrder[0] === stat.horseId ? 1 : 0),
-    settlementWins: stat.settlementWins + (race.settlementOrder[0] === stat.horseId ? 1 : 0),
+    physicalWins: stat.physicalWins + (roster[race.rawOrder[0]!] === stat.ponyId ? 1 : 0),
+    settlementWins: stat.settlementWins + (roster[race.settlementOrder[0]!] === stat.ponyId ? 1 : 0),
     pickedWins: stat.pickedWins + (backed && race.playerRank === 1 ? 1 : 0),
   }
 }

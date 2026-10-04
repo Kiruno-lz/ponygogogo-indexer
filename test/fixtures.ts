@@ -58,7 +58,7 @@ export function sessionOpened(
 ): Sim {
   return {
     contract: 'PonyGame',
-    event: 'SessionOpened',
+    event: 'LegacySessionOpened',
     ...meta(at),
     params: {
       sessionId: p.sessionId,
