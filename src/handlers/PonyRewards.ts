@@ -1,11 +1,6 @@
 import { indexer } from 'envio'
 import { hexId, newPlayer, small } from '../model.ts'
 
-// A reused ledger registers newly authorized Games without replacing its ownership read model.
-indexer.contractRegister({ contract: 'PonyRewards', event: 'GameRegistered' }, async ({ event, context }) => {
-  if (event.params.enabled) context.chain.PonyGame.add(event.params.game)
-})
-
 indexer.onEvent({ contract: 'PonyRewards', event: 'CollectibleGranted' }, async ({ event, context }) => {
   const ledger = event.srcAddress
   const sessionId = hexId(event.params.sessionId)

@@ -15,8 +15,6 @@ enum StakeLockState {
 }
 
 enum VaultTransferKind {
-  DEPOSIT
-  WITHDRAWAL
   HOUSE_FUND
   HOUSE_WITHDRAWAL
 }
@@ -58,7 +56,7 @@ type Session {
   game: String!
   player: Player!
   horseId: Int!
-  "Stable role identities by participant slot; legacy sessions use [0,1,2,3,4]"
+  "Stable role identities by participant slot"
   roster: [Int!]!
   "Player role identity, roster[horseId]"
   ponyId: Int!
@@ -109,7 +107,7 @@ type Session {
 }
 
 """
-One CardChosen submission, keyed by sessionId-checkpoint. v2 records the submission only; the
+One CardChosen submission, keyed by sessionId-checkpoint. The protocol records the submission only; the
 solver decides at settlement whether it took effect.
 """
 type Choice {
@@ -153,10 +151,6 @@ type Player {
   totalForfeited: BigInt!
   "Sum of (payout - stake) over closed sessions; open sessions count 0"
   net: BigInt!
-  totalDeposited: BigInt!
-  depositCount: Int!
-  totalWithdrawn: BigInt!
-  withdrawalCount: Int!
 }
 
 """
@@ -228,14 +222,9 @@ type VaultTransfer {
 """
 Event-derived Vault totals, keyed by Vault address (one row per deployed Vault). A statistic, not
 the Vault's balance sheet: read wallet balance, stake locks and house liquidity over RPC.
-Deposit/withdrawal totals describe historical legacy Vault events only.
 """
 type VaultStat {
   id: ID!
-  totalDeposited: BigInt!
-  depositCount: Int!
-  totalWithdrawn: BigInt!
-  withdrawalCount: Int!
   houseFunded: BigInt!
   houseFundCount: Int!
   houseWithdrawn: BigInt!
@@ -252,8 +241,6 @@ type VaultStat {
   settleCount: Int!
   "Sum of (stake - payout) over settled locks: the house's game result"
   housePnl: BigInt!
-  entryPaused: Boolean!
-  pauseChangedBlock: BigInt
 }
 
 """

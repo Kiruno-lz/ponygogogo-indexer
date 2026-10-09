@@ -12,7 +12,6 @@ export const CHECKPOINTS = 3
 
 /** Contract defaults that no event announces: PonyGame deploys paused, PonyVault deploys open. */
 export const GAME_STARTS_PAUSED = true
-export const VAULT_STARTS_PAUSED = false
 
 /** bytes32 ids are compared case-insensitively on chain; store one canonical spelling. */
 export function hexId(value: string): string {
@@ -52,7 +51,7 @@ export function bumpRank(counts: readonly number[], rank: number): number[] {
 }
 
 /**
- * A v2 CardChosen is only a submission. The settlement's `acquired[checkpoint - 1]` says what the
+ * A CardChosen is only a submission. The settlement's `acquired[checkpoint - 1]` says what the
  * player actually got there (0 = nothing); the submission took effect iff it names that card. For a
  * forfeit submission (cardId 0) this means nothing was acquired at the checkpoint.
  */
@@ -75,10 +74,6 @@ export function newPlayer(id: string): Player {
     totalPaidOut: 0n,
     totalForfeited: 0n,
     net: 0n,
-    totalDeposited: 0n,
-    depositCount: 0,
-    totalWithdrawn: 0n,
-    withdrawalCount: 0,
   }
 }
 
@@ -108,10 +103,6 @@ export function newGameStat(id: string): GameStat {
 export function newVaultStat(id: string): VaultStat {
   return {
     id,
-    totalDeposited: 0n,
-    depositCount: 0,
-    totalWithdrawn: 0n,
-    withdrawalCount: 0,
     houseFunded: 0n,
     houseFundCount: 0,
     houseWithdrawn: 0n,
@@ -123,8 +114,6 @@ export function newVaultStat(id: string): VaultStat {
     totalPayout: 0n,
     settleCount: 0,
     housePnl: 0n,
-    entryPaused: VAULT_STARTS_PAUSED,
-    pauseChangedBlock: undefined,
   }
 }
 

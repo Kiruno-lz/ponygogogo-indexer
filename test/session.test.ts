@@ -1,5 +1,5 @@
 /**
- * PonyGame v2 session lifecycle through the real handlers (createTestIndexer, simulated events):
+ * PonyGame v0.1 session lifecycle through the real handlers (createTestIndexer, simulated events):
  * open → three submissions with anchor seals → settle, and open → forfeit.
  */
 import { describe, expect, it } from 'vitest'
@@ -62,7 +62,7 @@ describe('settled session', () => {
       ponyId: 2,
       stake: STAKE,
       seed: hex32(0x5eed),
-      rulesetHash: '0x5ff01a27886c1cad8a1d286cf2bb15280f711d7133ab3377b375855bf5d3f84b',
+      rulesetHash: '0x879f0d8d0cd93a3dc8bd9ceb80d2a692c239613042b55a43c0b6473a0c950f69',
       openedAt: BigInt(timestampOf(100)),
       openedBlock: BigInt(blockAt(100)),
       openTx: txHash(100),

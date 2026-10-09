@@ -1,5 +1,5 @@
 /**
- * PonyGame session protocol v2 → Session / Choice / Player / HorseStat / CardStat / GameStat.
+ * PonyGame session protocol v0.1 → Session / Choice / Player / HorseStat / CardStat / GameStat.
  *
  * Every aggregate moves only on a guarded transition (a new Session, a new Choice, OPEN → SETTLED,
  * OPEN → FORFEITED, a first seal of an anchor), so an event delivered twice changes nothing the
@@ -26,13 +26,12 @@ import {
 
 const CHECKPOINT_NUMBERS = Array.from({ length: CHECKPOINTS }, (_, i) => i + 1)
 
-for (const opening of ['SessionOpened', 'LegacySessionOpened'] as const) {
 indexer.onEvent(
-  { contract: 'PonyGame', event: opening },
+  { contract: 'PonyGame', event: 'SessionOpened' },
   async ({ event, context }) => {
     const id = hexId(event.params.sessionId)
     const horseId = small(event.params.horseId)
-    const roster = 'roster' in event.params ? smallList(event.params.roster) : [0,1,2,3,4]
+    const roster = smallList(event.params.roster)
     const ponyId = roster[horseId]!
     const gameId = event.srcAddress
     const [existing, player, horse, game] = await Promise.all([
@@ -87,8 +86,6 @@ indexer.onEvent(
     context.GameStat.set({ ...g, sessionsOpened: g.sessionsOpened + 1, totalStaked: g.totalStaked + stake })
   },
 )
-
-}
 
 indexer.onEvent(
   { contract: 'PonyGame', event: 'CardChosen' },

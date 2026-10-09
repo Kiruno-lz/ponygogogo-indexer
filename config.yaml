@@ -1,7 +1,7 @@
 # yaml-language-server: $schema=./node_modules/envio/evm.schema.json
 name: ponygogogo-paid-races
 description: >-
-  Read model of Ponygogogo paid races (PonyGame session protocol v2 and PonyVault) on Monad
+  Read model of Ponygogogo paid races (PonyGame session protocol v0.1 and PonyVault) on Monad
   Testnet. History and statistics only; fund and session state are always read from the
   contracts over RPC.
 # Event ABIs are copied from the Foundry artifacts by scripts/sync-abis.mjs (`--check` detects drift).
@@ -12,10 +12,6 @@ contracts:
     abi_file_path: ./abis/PonyGame.json
     events:
       - event: SessionOpened
-        field_selection:
-          transaction_fields: [hash]
-      - event: "SessionOpened(bytes32 indexed sessionId, address indexed player, uint8 horseId, uint256 stake, bytes32 seed, uint64 openedAt, uint64 openedBlock, bytes32 rulesetHash)"
-        name: LegacySessionOpened
         field_selection:
           transaction_fields: [hash]
       - event: RewardsBound
@@ -37,24 +33,15 @@ contracts:
       - event: CollectibleGranted
         field_selection:
           transaction_fields: [hash]
-      - event: GameRegistered
   - name: PonyVault
     abi_file_path: ./abis/PonyVault.json
     events:
-      # Frozen legacy Vault topics; current payable Vaults have no player deposit/withdrawal API.
-      - event: "Deposited(address indexed player, uint256 amount)"
-        field_selection:
-          transaction_fields: [hash]
-      - event: "Withdrawn(address indexed player, uint256 amount)"
-        field_selection:
-          transaction_fields: [hash]
       - event: HouseFunded
         field_selection:
           transaction_fields: [hash]
       - event: HouseWithdrawn
         field_selection:
           transaction_fields: [hash]
-      - event: EntryPauseChanged
       - event: StakeLocked
         field_selection:
           transaction_fields: [hash]
@@ -71,13 +58,13 @@ chains:
     # One chain-level start_block (the PonyGame deploy block; PonyVault is deployed after it): envio
     # 3.12.1 rejects a second createTestIndexer().process() call when contracts carry their own
     # start_block overrides.
-    start_block: 66458114
+    start_block: 69477594
     hypersync_config:
       url: https://monad-testnet.hypersync.xyz
     contracts:
       - name: PonyGame
-        address: "0x92428770e79A95377c641F2Da9C9D97F4AA899c8"
+        address: "0x84a319aa7dAdE1fBD49FE135bb70feeD937eCe82"
       - name: PonyVault
-        address: "0xb1677bc7bceD53612f9569ac42eE752081485282"
+        address: "0xDe96ccC9874894Bf0004845407585cC192e2fa8d"
       - name: PonyRewards
         address: null # Registered from the configured Game's canonical RewardsBound event.

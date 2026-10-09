@@ -4,10 +4,10 @@
  * Vault handlers never read Session: StakeLock carries what StakeSettled needs, so the result does
  * not depend on whether PonyGame's or PonyVault's log comes first in a transaction. Transfers are
  * keyed by (chain, block, log index) and locks move LOCKED → SETTLED once, so an event delivered
- * twice leaves every total unchanged. v2 has no refunds: a forfeit is StakeSettled with payout 0.
+ * twice leaves every total unchanged. The protocol has no refunds: a forfeit is StakeSettled with payout 0.
  */
 import { indexer, type Enum, type EvmOnEventContext } from 'envio'
-import { hexId, logId, newPlayer, newVaultStat } from '../model.ts'
+import { hexId, logId, newVaultStat } from '../model.ts'
 
 type TransferEvent = {
   readonly chainId: number
@@ -25,12 +25,7 @@ async function recordTransfer(
   amount: bigint,
 ): Promise<void> {
   const id = logId(event.chainId, event.block.number, event.logIndex)
-  const playerFlow = kind === 'DEPOSIT' || kind === 'WITHDRAWAL'
-  const [existing, stat, player] = await Promise.all([
-    context.VaultTransfer.get(id),
-    context.VaultStat.get(event.srcAddress),
-    playerFlow ? context.Player.get(account) : Promise.resolve(undefined),
-  ])
+  const [existing, stat] = await Promise.all([context.VaultTransfer.get(id), context.VaultStat.get(event.srcAddress)])
   if (existing) return
 
   context.VaultTransfer.set({
@@ -45,12 +40,6 @@ async function recordTransfer(
   })
   const s = stat ?? newVaultStat(event.srcAddress)
   switch (kind) {
-    case 'DEPOSIT':
-      context.VaultStat.set({ ...s, totalDeposited: s.totalDeposited + amount, depositCount: s.depositCount + 1 })
-      break
-    case 'WITHDRAWAL':
-      context.VaultStat.set({ ...s, totalWithdrawn: s.totalWithdrawn + amount, withdrawalCount: s.withdrawalCount + 1 })
-      break
     case 'HOUSE_FUND':
       context.VaultStat.set({ ...s, houseFunded: s.houseFunded + amount, houseFundCount: s.houseFundCount + 1 })
       break
@@ -58,22 +47,7 @@ async function recordTransfer(
       context.VaultStat.set({ ...s, houseWithdrawn: s.houseWithdrawn + amount, houseWithdrawCount: s.houseWithdrawCount + 1 })
       break
   }
-  if (!playerFlow) return
-  const p = player ?? newPlayer(account)
-  context.Player.set(
-    kind === 'DEPOSIT'
-      ? { ...p, totalDeposited: p.totalDeposited + amount, depositCount: p.depositCount + 1 }
-      : { ...p, totalWithdrawn: p.totalWithdrawn + amount, withdrawalCount: p.withdrawalCount + 1 },
-  )
 }
-
-indexer.onEvent({ contract: 'PonyVault', event: 'Deposited' }, async ({ event, context }) => {
-  await recordTransfer(context, event, 'DEPOSIT', event.params.player, event.params.amount)
-})
-
-indexer.onEvent({ contract: 'PonyVault', event: 'Withdrawn' }, async ({ event, context }) => {
-  await recordTransfer(context, event, 'WITHDRAWAL', event.params.player, event.params.amount)
-})
 
 indexer.onEvent({ contract: 'PonyVault', event: 'HouseFunded' }, async ({ event, context }) => {
   await recordTransfer(context, event, 'HOUSE_FUND', event.params.funder, event.params.amount)
@@ -81,11 +55,6 @@ indexer.onEvent({ contract: 'PonyVault', event: 'HouseFunded' }, async ({ event,
 
 indexer.onEvent({ contract: 'PonyVault', event: 'HouseWithdrawn' }, async ({ event, context }) => {
   await recordTransfer(context, event, 'HOUSE_WITHDRAWAL', event.params.recipient, event.params.amount)
-})
-
-indexer.onEvent({ contract: 'PonyVault', event: 'EntryPauseChanged' }, async ({ event, context }) => {
-  const stat = (await context.VaultStat.get(event.srcAddress)) ?? newVaultStat(event.srcAddress)
-  context.VaultStat.set({ ...stat, entryPaused: event.params.paused, pauseChangedBlock: BigInt(event.block.number) })
 })
 
 indexer.onEvent(
