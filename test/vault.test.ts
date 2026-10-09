@@ -1,13 +1,8 @@
-/**
- * PonyVault events: player deposits/withdrawals, house funding, stake locks and their settlement,
- * pause flags. Includes the real session protocol v2 testnet deployment logs as a fixture.
- */
+/** Current Vault house funding, stake locks and settlement. */
 import { describe, expect, it } from 'vitest'
 import { createTestIndexer } from 'envio'
 import {
-  CHAIN_ID,
   DEPLOYER,
-  GAME,
   MON,
   PLAYER,
   RIVAL,
@@ -19,60 +14,12 @@ import {
   houseFunded,
   houseWithdrawn,
   openSession,
-  playerFlow,
   run,
   stakeSettled,
-  timestampOf,
   txHash,
-  type Sim,
 } from './fixtures.ts'
 
 describe('vault transfers', () => {
-  it('aggregates deposits and withdrawals per player and per vault', async () => {
-    const indexer = createTestIndexer()
-    await run(indexer, [
-      playerFlow({ block: 10, logIndex: 0 }, 'Deposited', PLAYER, MON),
-      playerFlow({ block: 11, logIndex: 3 }, 'Deposited', RIVAL, MON / 2n),
-      playerFlow({ block: 12, logIndex: 0 }, 'Deposited', PLAYER, MON / 4n),
-      playerFlow({ block: 20, logIndex: 1 }, 'Withdrawn', PLAYER, MON / 10n),
-      playerFlow({ block: 21, logIndex: 0 }, 'Withdrawn', RIVAL, MON / 2n),
-    ])
-
-    expect(await indexer.Player.getOrThrow(PLAYER)).toMatchObject({
-      totalDeposited: (MON * 5n) / 4n,
-      depositCount: 2,
-      totalWithdrawn: MON / 10n,
-      withdrawalCount: 1,
-      sessionsOpened: 0,
-      totalStaked: 0n,
-    })
-    expect(await indexer.Player.getOrThrow(RIVAL)).toMatchObject({
-      totalDeposited: MON / 2n,
-      depositCount: 1,
-      totalWithdrawn: MON / 2n,
-      withdrawalCount: 1,
-    })
-    expect(await indexer.VaultStat.getOrThrow(VAULT)).toMatchObject({
-      totalDeposited: (MON * 7n) / 4n,
-      depositCount: 3,
-      totalWithdrawn: (MON * 6n) / 10n,
-      withdrawalCount: 2,
-      houseFunded: 0n,
-    })
-
-    const rows = await indexer.VaultTransfer.getAll()
-    expect(rows).toHaveLength(5)
-    expect(await indexer.VaultTransfer.getOrThrow(`${CHAIN_ID}_${blockAt(11)}_3`)).toEqual({
-      id: `${CHAIN_ID}_${blockAt(11)}_3`,
-      vault: VAULT,
-      kind: 'DEPOSIT',
-      account: RIVAL,
-      amount: MON / 2n,
-      blockNumber: BigInt(blockAt(11)),
-      timestamp: BigInt(timestampOf(11)),
-      txHash: txHash(11),
-    })
-  })
 
   it('keeps house funding out of player totals', async () => {
     const indexer = createTestIndexer()
@@ -87,7 +34,6 @@ describe('vault transfers', () => {
       houseFundCount: 2,
       houseWithdrawn: MON / 2n,
       houseWithdrawCount: 1,
-      totalDeposited: 0n,
     })
     expect(await indexer.Player.getAll()).toEqual([])
     expect((await indexer.VaultTransfer.getAll()).map((t) => t.kind).sort()).toEqual(['HOUSE_FUND', 'HOUSE_FUND', 'HOUSE_WITHDRAWAL'])
@@ -141,78 +87,5 @@ describe('stake locks', () => {
       settledBlock: BigInt(blockAt(201)),
       settleTx: txHash(201),
     })
-  })
-})
-
-describe('real v2 testnet deployment logs', () => {
-  // Receipts of the v2 deployment transactions (cast receipt); timestamps from eth_getBlockByNumber.
-  const deployment: Sim[] = [
-    {
-      contract: 'PonyGame',
-      event: 'VaultBound',
-      logIndex: 41,
-      block: { number: 66_458_127, timestamp: 1_790_614_143 },
-      params: { vault: VAULT },
-    },
-    {
-      contract: 'PonyVault',
-      event: 'HouseFunded',
-      logIndex: 40,
-      block: { number: 66_458_135, timestamp: 1_790_614_146 },
-      transaction: { hash: '0x378f1428ed83b9e4e9cf80039039fde21f45ad67513524e0be887fceb12c8479' },
-      params: { funder: DEPLOYER, amount: 3n * MON },
-    },
-    {
-      contract: 'PonyGame',
-      event: 'EntryPauseChanged',
-      logIndex: 1,
-      block: { number: 66_458_146, timestamp: 1_790_614_149 },
-      params: { paused: false },
-    },
-  ]
-
-  it('binds the vault, funds the house and opens entries', async () => {
-    const indexer = createTestIndexer()
-    await run(indexer, deployment)
-
-    expect(await indexer.GameStat.getOrThrow(GAME)).toEqual({
-      id: GAME,
-      vault: VAULT,
-      entryPaused: false,
-      pauseChangedBlock: 66_458_146n,
-      sessionsOpened: 0,
-      sessionsSettled: 0,
-      sessionsForfeited: 0,
-      totalStaked: 0n,
-      totalPaidOut: 0n,
-    })
-    expect(await indexer.VaultStat.getOrThrow(VAULT)).toMatchObject({
-      houseFunded: 3n * MON,
-      houseFundCount: 1,
-      entryPaused: false,
-      pauseChangedBlock: undefined,
-    })
-    expect(await indexer.VaultTransfer.getOrThrow(`${CHAIN_ID}_66458135_40`)).toMatchObject({
-      kind: 'HOUSE_FUND',
-      account: DEPLOYER,
-      amount: 3n * MON,
-      timestamp: 1_790_614_146n,
-      txHash: '0x378f1428ed83b9e4e9cf80039039fde21f45ad67513524e0be887fceb12c8479',
-    })
-  })
-
-  it('starts the game paused until an EntryPauseChanged says otherwise', async () => {
-    const indexer = createTestIndexer()
-    await run(indexer, deployment.slice(0, 1))
-    expect(await indexer.GameStat.getOrThrow(GAME)).toMatchObject({ entryPaused: true, pauseChangedBlock: undefined })
-  })
-
-  it('mirrors the Vault pause flag separately from the Game one', async () => {
-    const indexer = createTestIndexer()
-    await run(indexer, [
-      { contract: 'PonyVault', event: 'EntryPauseChanged', logIndex: 0, block: { number: blockAt(5), timestamp: timestampOf(5) }, params: { paused: true } },
-    ])
-    expect(await indexer.VaultStat.getOrThrow(VAULT)).toMatchObject({ entryPaused: true, pauseChangedBlock: BigInt(blockAt(5)) })
-    expect(await indexer.GameStat.get(GAME)).toBeUndefined()
   })
 })

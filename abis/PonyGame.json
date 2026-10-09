@@ -113,6 +113,19 @@
   },
   {
     "type": "event",
+    "name": "CollectibleSkipped",
+    "inputs": [
+      {
+        "name": "sessionId",
+        "type": "bytes32",
+        "indexed": true,
+        "internalType": "bytes32"
+      }
+    ],
+    "anonymous": false
+  },
+  {
+    "type": "event",
     "name": "EntryPauseChanged",
     "inputs": [
       {
@@ -183,6 +196,19 @@
         "type": "bytes32",
         "indexed": false,
         "internalType": "bytes32"
+      }
+    ],
+    "anonymous": false
+  },
+  {
+    "type": "event",
+    "name": "RewardsBound",
+    "inputs": [
+      {
+        "name": "rewards",
+        "type": "address",
+        "indexed": true,
+        "internalType": "address"
       }
     ],
     "anonymous": false
@@ -269,6 +295,12 @@
         "type": "bytes32",
         "indexed": false,
         "internalType": "bytes32"
+      },
+      {
+        "name": "roster",
+        "type": "uint8[5]",
+        "indexed": false,
+        "internalType": "uint8[5]"
       }
     ],
     "anonymous": false

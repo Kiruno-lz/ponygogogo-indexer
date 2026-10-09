@@ -1,5 +1,5 @@
 /**
- * PonyGame session protocol v2 → Session / Choice / Player / HorseStat / CardStat / GameStat.
+ * PonyGame session protocol v0.1 → Session / Choice / Player / HorseStat / CardStat / GameStat.
  *
  * Every aggregate moves only on a guarded transition (a new Session, a new Choice, OPEN → SETTLED,
  * OPEN → FORFEITED, a first seal of an anchor), so an event delivered twice changes nothing the
@@ -9,7 +9,6 @@
 import { indexer, type Choice, type Session } from 'envio'
 import {
   CHECKPOINTS,
-  HORSE_COUNT,
   acquiredAt,
   bumpRank,
   choiceId,
@@ -26,18 +25,19 @@ import {
 } from '../model.ts'
 
 const CHECKPOINT_NUMBERS = Array.from({ length: CHECKPOINTS }, (_, i) => i + 1)
-const HORSE_IDS = Array.from({ length: HORSE_COUNT }, (_, i) => i)
 
 indexer.onEvent(
   { contract: 'PonyGame', event: 'SessionOpened' },
   async ({ event, context }) => {
     const id = hexId(event.params.sessionId)
     const horseId = small(event.params.horseId)
+    const roster = smallList(event.params.roster)
+    const ponyId = roster[horseId]!
     const gameId = event.srcAddress
     const [existing, player, horse, game] = await Promise.all([
       context.Session.get(id),
       context.Player.get(event.params.player),
-      context.HorseStat.get(String(horseId)),
+      context.HorseStat.get(String(ponyId)),
       context.GameStat.get(gameId),
     ])
     if (existing) return
@@ -48,6 +48,8 @@ indexer.onEvent(
       game: gameId,
       player_id: event.params.player,
       horseId,
+      roster,
+      ponyId,
       stake,
       seed: event.params.seed,
       rulesetHash: event.params.rulesetHash,
@@ -78,7 +80,7 @@ indexer.onEvent(
 
     const p = player ?? newPlayer(event.params.player)
     context.Player.set({ ...p, sessionsOpened: p.sessionsOpened + 1, totalStaked: p.totalStaked + stake })
-    const h = horse ?? newHorseStat(horseId)
+    const h = horse ?? newHorseStat(ponyId)
     context.HorseStat.set({ ...h, picked: h.picked + 1 })
     const g = game ?? newGameStat(gameId)
     context.GameStat.set({ ...g, sessionsOpened: g.sessionsOpened + 1, totalStaked: g.totalStaked + stake })
@@ -182,7 +184,7 @@ indexer.onEvent(
     })
     const cardIds = [...new Set([...acquired, ...resolved.map((c) => c.cardId)].filter((id) => id > 0))]
     const [horses, cards] = await Promise.all([
-      Promise.all(HORSE_IDS.map((horseId) => context.HorseStat.get(String(horseId)))),
+      Promise.all(session.roster.map((ponyId) => context.HorseStat.get(String(ponyId)))),
       Promise.all(cardIds.map((cardId) => context.CardStat.get(String(cardId)))),
     ])
 
@@ -221,9 +223,9 @@ indexer.onEvent(
     const g = game ?? newGameStat(event.srcAddress)
     context.GameStat.set({ ...g, sessionsSettled: g.sessionsSettled + 1, totalPaidOut: g.totalPaidOut + payout })
 
-    const race = { rawOrder, settlementOrder, playerHorseId: session.horseId, playerRank }
-    HORSE_IDS.forEach((horseId, i) => {
-      context.HorseStat.set(settleHorse(horses[i] ?? newHorseStat(horseId), race))
+    const race = { rawOrder, settlementOrder, playerHorseId: session.horseId, playerRank, roster: session.roster }
+    session.roster.forEach((ponyId, i) => {
+      context.HorseStat.set(settleHorse(horses[i] ?? newHorseStat(ponyId), race))
     })
     cardIds.forEach((cardId, i) => {
       const c = cards[i] ?? newCardStat(cardId)
@@ -277,6 +279,9 @@ indexer.onEvent(
   },
 )
 
+indexer.contractRegister({ contract: 'PonyGame', event: 'VaultBound' }, async ({ event, context }) => {
+  context.chain.PonyVault.add(event.params.vault)
+})
 indexer.onEvent({ contract: 'PonyGame', event: 'VaultBound' }, async ({ event, context }) => {
   const game = (await context.GameStat.get(event.srcAddress)) ?? newGameStat(event.srcAddress)
   context.GameStat.set({ ...game, vault: event.params.vault })
@@ -285,4 +290,13 @@ indexer.onEvent({ contract: 'PonyGame', event: 'VaultBound' }, async ({ event, c
 indexer.onEvent({ contract: 'PonyGame', event: 'EntryPauseChanged' }, async ({ event, context }) => {
   const game = (await context.GameStat.get(event.srcAddress)) ?? newGameStat(event.srcAddress)
   context.GameStat.set({ ...game, entryPaused: event.params.paused, pauseChangedBlock: BigInt(event.block.number) })
+})
+
+// The ledger is immutable for a Game and announced at its canonical creation block.
+indexer.contractRegister({ contract: 'PonyGame', event: 'RewardsBound' }, async ({ event, context }) => {
+  context.chain.PonyRewards.add(event.params.rewards)
+})
+indexer.onEvent({ contract: 'PonyGame', event: 'RewardsBound' }, async ({ event, context }) => {
+  const game = (await context.GameStat.get(event.srcAddress)) ?? newGameStat(event.srcAddress)
+  context.GameStat.set({ ...game, rewards: event.params.rewards })
 })

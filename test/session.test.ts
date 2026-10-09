@@ -1,5 +1,5 @@
 /**
- * PonyGame v2 session lifecycle through the real handlers (createTestIndexer, simulated events):
+ * PonyGame v0.1 session lifecycle through the real handlers (createTestIndexer, simulated events):
  * open → three submissions with anchor seals → settle, and open → forfeit.
  */
 import { describe, expect, it } from 'vitest'
@@ -58,9 +58,11 @@ describe('settled session', () => {
       game: GAME,
       player_id: PLAYER,
       horseId: 2,
+      roster: [0,1,2,3,4],
+      ponyId: 2,
       stake: STAKE,
       seed: hex32(0x5eed),
-      rulesetHash: '0x5ff01a27886c1cad8a1d286cf2bb15280f711d7133ab3377b375855bf5d3f84b',
+      rulesetHash: '0x879f0d8d0cd93a3dc8bd9ceb80d2a692c239613042b55a43c0b6473a0c950f69',
       openedAt: BigInt(timestampOf(100)),
       openedBlock: BigInt(blockAt(100)),
       openTx: txHash(100),
@@ -119,8 +121,8 @@ describe('settled session', () => {
       net: STAKE * 2n,
     })
 
-    const horses = (await indexer.HorseStat.getAll()).sort((a, b) => a.horseId - b.horseId)
-    expect(horses.map((h) => [h.horseId, h.picked, h.raced, h.physicalWins, h.settlementWins, h.pickedWins])).toEqual([
+    const horses = (await indexer.HorseStat.getAll()).sort((a, b) => a.ponyId - b.ponyId)
+    expect(horses.map((h) => [h.ponyId, h.picked, h.raced, h.physicalWins, h.settlementWins, h.pickedWins])).toEqual([
       [0, 0, 1, 0, 0, 0],
       [1, 0, 1, 0, 0, 0],
       [2, 1, 1, 1, 1, 1],
@@ -164,8 +166,8 @@ describe('settled session', () => {
       net: -STAKE,
       effectiveChoices: 0,
     })
-    const horses = (await indexer.HorseStat.getAll()).sort((a, b) => a.horseId - b.horseId)
-    expect(horses.map((h) => [h.horseId, h.physicalWins, h.settlementWins, h.pickedWins])).toEqual([
+    const horses = (await indexer.HorseStat.getAll()).sort((a, b) => a.ponyId - b.ponyId)
+    expect(horses.map((h) => [h.ponyId, h.physicalWins, h.settlementWins, h.pickedWins])).toEqual([
       [0, 0, 0, 0],
       [1, 1, 0, 0],
       [2, 0, 0, 0],

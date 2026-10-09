@@ -18,7 +18,8 @@ import {
   blockAt,
   cardChosen,
   openSession,
-  playerFlow,
+  houseFunded,
+  houseWithdrawn,
   run,
   sessionForfeited,
   sessionSettled,
@@ -42,7 +43,7 @@ function lifecycle(shift = 0): Sim[] {
       { sessionId: SESSION_A, rawOrder: [3, 1, 0, 2, 4], settlementOrder: [3, 1, 0, 2, 4], rank: 1, payout: STAKE * 3n, acquired: [4, 0, 0] },
     ),
     stakeSettled({ block: b(200), logIndex: 2 }, { sessionId: SESSION_A, payout: STAKE * 3n }),
-    playerFlow({ block: b(201), logIndex: 0 }, 'Withdrawn', PLAYER, STAKE),
+    houseWithdrawn({ block: b(201), logIndex: 0 }, PLAYER, STAKE),
   ]
 }
 
@@ -68,7 +69,7 @@ describe('idempotent aggregates', () => {
 
     // The same session facts again, 5000 blocks later: open, stake lock, seals, choice, settlement.
     const replayed = createTestIndexer()
-    await run(replayed, [...lifecycle(), ...lifecycle(5_000).filter((event) => event.event !== 'Withdrawn')])
+    await run(replayed, [...lifecycle(), ...lifecycle(5_000).filter((event) => event.event !== 'HouseWithdrawn')])
 
     expect(await snapshot(replayed)).toEqual(await snapshot(once))
     expect(await replayed.Player.getOrThrow(PLAYER)).toMatchObject({ sessionsOpened: 1, sessionsSettled: 1, totalStaked: STAKE })
@@ -83,7 +84,7 @@ describe('idempotent aggregates', () => {
     const recorded = {
       id,
       vault: VAULT,
-      kind: 'DEPOSIT' as const,
+      kind: 'HOUSE_FUND' as const,
       account: PLAYER,
       amount: MON,
       blockNumber: BigInt(blockAt(10)),
@@ -91,7 +92,7 @@ describe('idempotent aggregates', () => {
       txHash: txHash(10),
     }
     indexer.VaultTransfer.set(recorded)
-    await run(indexer, [playerFlow({ block: 10, logIndex: 0 }, 'Deposited', PLAYER, MON)])
+    await run(indexer, [houseFunded({ block: 10, logIndex: 0 }, PLAYER, MON)])
 
     expect(await indexer.VaultTransfer.getAll()).toEqual([recorded])
     expect(await indexer.VaultStat.get(VAULT)).toBeUndefined()
@@ -138,13 +139,13 @@ describe('idempotent aggregates', () => {
     expect(await indexer.VaultStat.getOrThrow(VAULT)).toMatchObject({ settleCount: 1, totalPayout: STAKE * 3n })
   })
 
-  it('counts repeated deposits in distinct logs, even with the same amount', async () => {
+  it('counts repeated house funding in distinct logs, even with the same amount', async () => {
     const indexer = createTestIndexer()
     await run(indexer, [
-      playerFlow({ block: 10, logIndex: 0 }, 'Deposited', PLAYER, MON),
-      playerFlow({ block: 10, logIndex: 1 }, 'Deposited', PLAYER, MON),
+      houseFunded({ block: 10, logIndex: 0 }, PLAYER, MON),
+      houseFunded({ block: 10, logIndex: 1 }, PLAYER, MON),
     ])
-    expect(await indexer.Player.getOrThrow(PLAYER)).toMatchObject({ totalDeposited: 2n * MON, depositCount: 2 })
+    expect(await indexer.VaultStat.getOrThrow(VAULT)).toMatchObject({ houseFunded: 2n * MON, houseFundCount: 2 })
   })
 })
 

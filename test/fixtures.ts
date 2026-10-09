@@ -5,17 +5,17 @@
 import { createTestIndexer } from 'envio'
 
 export const CHAIN_ID = 10143
-/** Session protocol v2 testnet deployment, as in config.yaml (checksummed as the indexer reports them). */
-export const GAME = '0x92428770e79A95377c641F2Da9C9D97F4AA899c8'
-export const VAULT = '0xb1677bc7bceD53612f9569ac42eE752081485282'
+/** Session protocol v0.1 testnet deployment, as in config.yaml (checksummed as the indexer reports them). */
+export const GAME = '0x84a319aa7dAdE1fBD49FE135bb70feeD937eCe82'
+export const VAULT = '0xDe96ccC9874894Bf0004845407585cC192e2fa8d'
 export const DEPLOYER = '0xB2Cd1aBBb940D612A71e545067C05f900B32960e'
 export const PLAYER = '0x39fFB4053194CD91D266491C2057A053cD62bB5D'
 export const RIVAL = '0x70997970C51812dc3A010C7d01b50e0d17dc79C8'
 
 export const MON = 10n ** 18n
 export const STAKE = (MON * 3n) / 10n // 0.3 MON, tier 1 (PonyGame.stakeForTier)
-/** Rules v3 ruleset hash (PaidCardRules.RULESET_HASH, PonyGame.rulesetHash on the v2 deployment). */
-export const RULESET = '0x5ff01a27886c1cad8a1d286cf2bb15280f711d7133ab3377b375855bf5d3f84b'
+/** Current v0.1 ruleset hash. */
+export const RULESET = '0x879f0d8d0cd93a3dc8bd9ceb80d2a692c239613042b55a43c0b6473a0c950f69'
 
 export type TestIndexer = ReturnType<typeof createTestIndexer>
 type ChainRun = NonNullable<Parameters<TestIndexer['process']>[0]['chains'][typeof CHAIN_ID]>
@@ -23,10 +23,10 @@ export type Sim = NonNullable<ChainRun['simulate']>[number]
 
 /**
  * Builders take block numbers relative to BASE_BLOCK: the indexer drops events below the configured
- * start_block (66_458_114), so absolute numbers must sit after the deployment. `blockAt(n)` is the
+ * start_block (69_477_594), so absolute numbers must sit after the deployment. `blockAt(n)` is the
  * absolute one.
  */
-export const BASE_BLOCK = 66_500_000
+export const BASE_BLOCK = 69_480_000
 export const blockAt = (relative: number): number => BASE_BLOCK + relative
 
 export const hex32 = (n: number | bigint): string => `0x${BigInt(n).toString(16).padStart(64, '0')}`
@@ -69,6 +69,7 @@ export function sessionOpened(
       openedAt: BigInt(timestampOf(at.block)),
       openedBlock: BigInt(blockAt(at.block)),
       rulesetHash: RULESET,
+      roster: [0n,1n,2n,3n,4n],
     },
   }
 }
@@ -176,10 +177,6 @@ export function stakeSettled(at: At, p: { sessionId: string; player?: string; pa
   }
 }
 
-type VaultFlow = 'Deposited' | 'Withdrawn'
-export function playerFlow(at: At, event: VaultFlow, player: string, amount: bigint): Sim {
-  return { contract: 'PonyVault', event, ...meta(at), params: { player: player as `0x${string}`, amount } }
-}
 
 export function houseFunded(at: At, funder: string, amount: bigint): Sim {
   return { contract: 'PonyVault', event: 'HouseFunded', ...meta(at), params: { funder: funder as `0x${string}`, amount } }

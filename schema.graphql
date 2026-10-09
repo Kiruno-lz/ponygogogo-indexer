@@ -15,10 +15,36 @@ enum StakeLockState {
 }
 
 enum VaultTransferKind {
-  DEPOSIT
-  WITHDRAWAL
   HOUSE_FUND
   HOUSE_WITHDRAWAL
+}
+
+enum CollectibleKind {
+  RARE_CARD
+  PONY
+}
+
+"A canonical reward log. This read model never grants ownership or changes payouts."
+type CollectibleGrant {
+  id: ID!
+  ledger: String!
+  sessionId: String!
+  player: Player!
+  assetKind: CollectibleKind!
+  assetId: Int!
+  blockNumber: BigInt!
+  timestamp: BigInt!
+  txHash: String!
+}
+
+"One earned asset per player and persistent ledger, independent of Game versions."
+type CollectibleOwnership {
+  id: ID!
+  ledger: String!
+  player: Player!
+  assetKind: CollectibleKind!
+  assetId: Int!
+  grant: CollectibleGrant!
 }
 
 """
@@ -30,6 +56,10 @@ type Session {
   game: String!
   player: Player!
   horseId: Int!
+  "Stable role identities by participant slot"
+  roster: [Int!]!
+  "Player role identity, roster[horseId]"
+  ponyId: Int!
   "Stake in wei"
   stake: BigInt!
   seed: String!
@@ -77,7 +107,7 @@ type Session {
 }
 
 """
-One CardChosen submission, keyed by sessionId-checkpoint. v2 records the submission only; the
+One CardChosen submission, keyed by sessionId-checkpoint. The protocol records the submission only; the
 solver decides at settlement whether it took effect.
 """
 type Choice {
@@ -121,18 +151,14 @@ type Player {
   totalForfeited: BigInt!
   "Sum of (payout - stake) over closed sessions; open sessions count 0"
   net: BigInt!
-  totalDeposited: BigInt!
-  depositCount: Int!
-  totalWithdrawn: BigInt!
-  withdrawalCount: Int!
 }
 
 """
-Per-horse statistics, keyed by horseId 0..4.
+Per-role statistics, keyed by stable ponyId. Participant slots remain 0..4.
 """
 type HorseStat {
   id: ID!
-  horseId: Int!
+  ponyId: Int!
   "Sessions whose player backed this horse"
   picked: Int!
   "Settled races (every settled race runs all five horses)"
@@ -146,7 +172,7 @@ type HorseStat {
 }
 
 """
-Per-card statistics, keyed by cardId 1..26 (forfeits, cardId 0, are not a card).
+Per-card statistics, keyed by canonical cardId (forfeits, cardId 0, are not a card).
 """
 type CardStat {
   id: ID!
@@ -195,14 +221,10 @@ type VaultTransfer {
 
 """
 Event-derived Vault totals, keyed by Vault address (one row per deployed Vault). A statistic, not
-the Vault's balance sheet: read available/locked/house liquidity from the contract.
+the Vault's balance sheet: read wallet balance, stake locks and house liquidity over RPC.
 """
 type VaultStat {
   id: ID!
-  totalDeposited: BigInt!
-  depositCount: Int!
-  totalWithdrawn: BigInt!
-  withdrawalCount: Int!
   houseFunded: BigInt!
   houseFundCount: Int!
   houseWithdrawn: BigInt!
@@ -219,8 +241,6 @@ type VaultStat {
   settleCount: Int!
   "Sum of (stake - payout) over settled locks: the house's game result"
   housePnl: BigInt!
-  entryPaused: Boolean!
-  pauseChangedBlock: BigInt
 }
 
 """
@@ -228,6 +248,7 @@ Event-derived PonyGame totals, keyed by PonyGame address.
 """
 type GameStat {
   id: ID!
+  rewards: String
   "Vault bound by VaultBound"
   vault: String
   "PonyGame starts paused; flips on EntryPauseChanged"
